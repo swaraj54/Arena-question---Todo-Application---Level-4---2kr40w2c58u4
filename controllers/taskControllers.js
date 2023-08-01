@@ -1,20 +1,20 @@
-const Users   = require("../models/user.js");
+const Users = require("../models/user.js");
 const jwt = require("jsonwebtoken");
-const Tasks   = require("../models/task.js");
-const bcrypt  = require('bcrypt');
+const Tasks = require("../models/task.js");
+const bcrypt = require('bcrypt');
 const { valid } = require("joi");
 const JWT_SECRET = "newtonSchool";
 
 
-const createTask =async (req, res) => {
+const createTask = async (req, res) => {
 
     //creator_id is user id who have created this task.
 
-    const { heading, description, token  } = req.body;
+    const { heading, description, token } = req.body;
     let decodedToken;
-    try{
+    try {
         decodedToken = jwt.verify(token, JWT_SECRET);
-    }catch(err){
+    } catch (err) {
         res.status(404).json({
             status: 'fail',
             message: 'Invalid token'
@@ -28,14 +28,14 @@ const createTask =async (req, res) => {
         creator_id
     };
 
-    try{
+    try {
         const task = await Tasks.create(newtask);
         res.status(200).json({
             message: 'Task added successfully',
             task_id: task._id,
             status: 'success'
         });
-    }catch(error){
+    } catch (error) {
         res.status(404).json({
             status: 'fail',
             message: error.message
@@ -49,13 +49,13 @@ const getdetailTask = async (req, res) => {
 
     const task_id = req.body.task_id;
 
-    try{
+    try {
         const task = await Tasks.findById(task_id);
         res.status(200).json({
             status: 'success',
             data: task
         })
-    }catch(err){
+    } catch (err) {
         res.status(404).json({
             status: 'fail',
             message: err.message
@@ -64,21 +64,21 @@ const getdetailTask = async (req, res) => {
 }
 
 const updateTask = async (req, res) => {
-    
+
     const task_id = req.body.task_id;
-    try{
+    try {
         const task = await Tasks.findByIdAndUpdate(
             task_id,
-            { $set:  req.body },
+            { $set: req.body },
             { new: true }
         );
         res.status(200).json({
-            status:'success',
+            status: 'success',
             data: task
         });
-    }catch(err){
+    } catch (err) {
         res.status(404).json({
-            status:'fail',
+            status: 'fail',
             data: err.message
         });
     }
@@ -88,15 +88,15 @@ const updateTask = async (req, res) => {
 
 const deleteTask = async (req, res) => {
 
-    const {task_id, token} = req.body;
+    const { task_id, token } = req.body;
 
-    try{
+    try {
         await Tasks.findByIdAndDelete(task_id);
         res.status(200).json({
             status: 'success',
             message: 'Task deleted successfully'
         });
-    }catch(err){
+    } catch (err) {
         res.status(404).json({
             status: 'fail',
             message: err.message
@@ -135,8 +135,39 @@ the latest data will be at the top.
 */
 
 const getallTask = async (req, res) => {
+    try {
+        const { token } = req.body;
+        const { status } = req.query;
+        if (!token) return res.status(401).json({ status: "fail", message: "Authentication failed: Missing token." })
+        let query = {};
+        if (status) {
+            query.status = status;
+        }
+        try {
+            const decodedToken = jwt.verify(token, JWT_SECRET);
+            if (decodedToken) {
+                const id = decodedToken?.userId;
 
-    //Write your code here.
+                const user = await Users.findById(id);
+                if (user.role != "admin") {
+                    query.creator_id = id;
+                }
+                console.log(query, "query here")
+                const allTodos = await Tasks.find(query)
+                return res.status(200).json({
+                    status: 'success',
+                    data: allTodos
+                });
+            } else {
+                throw new Error("Internal Server Error")
+            }
+        }
+        catch (error) {
+            return res.status(500).json({ message: error.message, status: "error" })
+        }
+    } catch (error) {
+        return res.status(500).json({ message: "Internal Server Error", status: "fail", error: error.message })
+    }
 }
 
 
